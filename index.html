@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EviosHQ × ISI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0b1120;--s:#131c31;--s2:#0a0e1a;--brd:#1e2d4a;--blue:#60a5fa;--cyan:#22d3ee;--green:#34d399;--amber:#fbbf24;--rose:#f87171;--t:#e8edf5;--td:#7b8baa;--td2:#4e5f82}
+    html{scroll-behavior:smooth;scroll-snap-type:y mandatory}
+    body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--t);overflow-x:hidden}
+    .slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:60px 10vw;scroll-snap-align:start}
+    @media(max-width:768px){.slide{padding:48px 24px}}
+    .topbar{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 10vw;display:flex;align-items:center;justify-content:space-between;background:rgba(11,17,32,.6);backdrop-filter:blur(16px);border-bottom:1px solid rgba(30,45,74,.4)}
+    .topbar img{height:22px;opacity:.9} .topbar .tag{font-size:.68rem;color:var(--td);font-weight:500}
+    .dots{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:10px}
+    .dots a{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.08);display:block;transition:all .3s}
+    .dots a.active{background:var(--blue);transform:scale(1.5)}
+    .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+    .rv.vis{opacity:1;transform:translateY(0)} .d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
+    .s1-layout{display:grid;grid-template-columns:1fr 1.1fr;gap:64px;align-items:center}
+    @media(max-width:900px){.s1-layout{grid-template-columns:1fr;gap:36px}}
+    .s1-left .label{font-size:.58rem;text-transform:uppercase;letter-spacing:.16em;color:var(--td2);font-weight:600;margin-bottom:16px}
+    .s1-left h2{font-size:clamp(1.6rem,3vw,2.3rem);font-weight:800;letter-spacing:-.03em;line-height:1.12;margin-bottom:16px}
+    .s1-left p{font-size:.9rem;color:var(--td);line-height:1.65;max-width:380px}
+    .pain-stack{display:flex;flex-direction:column;gap:14px}
+    .pain{display:flex;align-items:flex-start;gap:18px;padding:22px 24px;background:var(--s);border:1px solid var(--brd);border-radius:12px;cursor:pointer;transition:border-color .3s,transform .3s,box-shadow .3s}
+    .pain:hover{transform:translateX(6px)}
+    .pain[data-c="amber"]:hover{border-color:var(--amber);box-shadow:0 0 30px rgba(251,191,36,.06)}
+    .pain[data-c="cyan"]:hover{border-color:var(--cyan);box-shadow:0 0 30px rgba(34,211,238,.06)}
+    .pain[data-c="rose"]:hover{border-color:var(--rose);box-shadow:0 0 30px rgba(248,113,113,.06)}
+    .pain-bar{width:3px;border-radius:2px;align-self:stretch;flex-shrink:0} .pain-body{flex:1}
+    .pain h4{font-size:.86rem;font-weight:700;margin-bottom:4px}
+    .pain>div>p{font-size:.78rem;color:var(--td);line-height:1.55}
+    .pain .hint{display:flex;align-items:center;gap:5px;margin-top:10px;font-size:.68rem;font-weight:600;opacity:0;transition:opacity .3s;text-transform:uppercase;letter-spacing:.08em}
+    .pain:hover .hint{opacity:1}
+    .pain[data-c="amber"] .hint{color:var(--amber)} .pain[data-c="cyan"] .hint{color:var(--cyan)} .pain[data-c="rose"] .hint{color:var(--rose)}
+
+    /* ═══ MODAL ═══ */
+    .mo{position:fixed;inset:0;z-index:200;background:rgba(3,5,12,.82);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s}
+    .mo.open{opacity:1;pointer-events:auto}
+    .md{background:var(--s);border:1px solid var(--brd);border-radius:18px;max-width:1080px;width:100%;overflow:hidden;transform:translateY(16px) scale(.97);transition:transform .4s cubic-bezier(.16,1,.3,1);border-top:3px solid transparent;display:flex;flex-direction:column}
+    .mo.open .md{transform:translateY(0) scale(1)}
+    .md-body{display:grid;grid-template-columns:.85fr 1.15fr}
+    @media(max-width:860px){.md-body{grid-template-columns:1fr}}
+    .md-text{padding:36px 32px;display:flex;flex-direction:column;justify-content:center}
+    .md-text .ml{font-size:.56rem;text-transform:uppercase;letter-spacing:.16em;font-weight:700;margin-bottom:12px}
+    .md-text h3{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+    .md-text .mp{font-size:.86rem;color:var(--td);line-height:1.7;margin-bottom:22px}
+    .md-text .mf{display:flex;flex-direction:column;gap:9px}
+    .md-text .fi{display:flex;align-items:flex-start;gap:9px;font-size:.82rem;line-height:1.5}
+    .md-text .fd{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:7px}
+    .md-screen{position:relative;background:var(--s2);border-left:1px solid var(--brd);min-height:480px}
+    .md-screen canvas{display:block;width:100%;height:100%}
+    .mx{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--brd);background:rgba(255,255,255,.03);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--td);z-index:5}
+    .mx:hover{border-color:var(--td)}
+    .md-sources{border-top:1px solid var(--brd);padding:14px 32px;display:flex;align-items:center;gap:24px;background:rgba(255,255,255,.01)}
+    .md-sources .src-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:var(--td2);font-weight:600;flex-shrink:0}
+    .md-sources .src-items{display:flex;gap:16px;flex-wrap:wrap}
+    .md-sources .src-item{font-size:.72rem;color:var(--td);font-weight:600;display:flex;align-items:center;gap:5px}
+    .md-sources .src-dot{width:5px;height:5px;border-radius:50%}
+    .md[data-t="amber"]{border-top-color:var(--amber)}.md[data-t="amber"] .ml,.md[data-t="amber"] h3{color:var(--amber)}.md[data-t="amber"] .fd,.md[data-t="amber"] .src-dot{background:var(--amber)}
+    .md[data-t="cyan"]{border-top-color:var(--cyan)}.md[data-t="cyan"] .ml,.md[data-t="cyan"] h3{color:var(--cyan)}.md[data-t="cyan"] .fd,.md[data-t="cyan"] .src-dot{background:var(--cyan)}
+    .md[data-t="green"]{border-top-color:var(--green)}.md[data-t="green"] .ml,.md[data-t="green"] h3{color:var(--green)}.md[data-t="green"] .fd,.md[data-t="green"] .src-dot{background:var(--green)}
+
+    .arch-title{font-size:clamp(1.5rem,2.8vw,2rem);font-weight:800;letter-spacing:-.03em;margin-bottom:10px}
+    .arch-sub{font-size:.88rem;color:var(--td);margin-bottom:36px;max-width:400px;line-height:1.6}
+    .arch-box{background:var(--s);border:1px solid var(--brd);border-radius:12px;overflow:hidden}
+    #archCanvas{display:block;width:100%}
+    .close{align-items:center;text-align:center}
+    .close h2{font-size:clamp(1.5rem,2.8vw,2rem);font-weight:800;letter-spacing:-.03em;margin-bottom:12px}
+    .close p{color:var(--td);font-size:.88rem;max-width:360px;margin:0 auto;line-height:1.6}
+    .close .sig{margin-top:48px;font-size:.7rem;color:var(--td2)}
+    #mapScreen{overflow:hidden}
+    #leafletMap{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1}
+    #mapScreen canvas{position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;pointer-events:none}
+    .leaflet-container{background:#060a14!important}
+    .leaflet-tile-pane{filter:brightness(.85) saturate(.9)}
+  </style>
+</head>
+<body>
+<div class="topbar"><img src="evios-logo.png" alt="EviosHQ"><span class="tag">EviosHQ &times; ISI</span></div>
+<div class="dots" id="dots"><a href="#s1"></a><a href="#s2"></a><a href="#s3"></a></div>
+
+<div class="slide" id="s1"><div class="s1-layout"><div class="s1-left"><div class="label rv">Today at ISI</div><h2 class="rv d1">Three things that take too much time and cost too much money.</h2><p class="rv d2">Click each one to see how we fix it.</p></div><div class="pain-stack">
+  <div class="pain rv d1" data-c="amber" data-m="0"><div class="pain-bar" style="background:var(--amber)"></div><div class="pain-body"><h4>Freight quoting</h4><p>Every quote means calling carriers or paying a consultant. Hours of waiting for numbers that should be instant.</p><div class="hint">See the solution &rarr;</div></div></div>
+  <div class="pain rv d2" data-c="cyan" data-m="1"><div class="pain-bar" style="background:var(--cyan)"></div><div class="pain-body"><h4>Shipment tracking</h4><p>Checking carrier emails one by one. No live overview, no alerts when ETAs change or something is delayed.</p><div class="hint">See the solution &rarr;</div></div></div>
+  <div class="pain rv d3" data-c="rose" data-m="2"><div class="pain-bar" style="background:var(--rose)"></div><div class="pain-body"><h4>Daily data entry</h4><p>QuickBooks data, carrier updates, sales orders — manually compiled into a spreadsheet the whole team depends on.</p><div class="hint">See the solution &rarr;</div></div></div>
+</div></div></div>
+
+<!-- MODAL 0: QUOTES -->
+<div class="mo" id="mo0"><div class="md" data-t="amber"><div class="md-body"><div class="md-text"><div class="ml">The solution</div><h3>Instant freight quotes</h3><p class="mp">Enter origin, destination, and weight. Get rates from multiple carriers side by side in seconds — no consultants, no phone calls.</p><div class="mf"><div class="fi"><span class="fd"></span>Parcel to full pallet — 25 kg to 1,100 kg+</div><div class="fi"><span class="fd"></span>UPS, FedEx, DHL, ocean and air carriers</div><div class="fi"><span class="fd"></span>All routes — Europe to US, US to Mexico, domestic</div><div class="fi"><span class="fd"></span>Every quote saved for historical comparison</div><div class="fi"><span class="fd"></span>AI spots trends — "rates to Houston up 12%"</div></div></div><div class="md-screen"><div class="mx" onclick="closeM()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l10 10M11 1L1 11"/></svg></div><canvas id="c0"></canvas></div></div>
+<div class="md-sources"><span class="src-label">Powered by</span><div class="src-items"><span class="src-item"><span class="src-dot"></span>Shippo API — parcel rates (UPS, FedEx, DHL)</span><span class="src-item"><span class="src-dot"></span>Freightos API — ocean &amp; air freight rates</span></div></div></div></div>
+
+<!-- MODAL 1: MAP -->
+<div class="mo" id="mo1"><div class="md" data-t="cyan"><div class="md-body"><div class="md-text"><div class="ml">The solution</div><h3>Live map + automatic alerts</h3><p class="mp">Every active shipment on an interactive map. Automatic notifications the moment something changes.</p><div class="mf"><div class="fi"><span class="fd"></span>Real-time location for every shipment</div><div class="fi"><span class="fd"></span>Automatic alerts for delays and ETA changes</div><div class="fi"><span class="fd"></span>Delivery confirmations sent instantly</div><div class="fi"><span class="fd"></span>All carriers unified in one view</div><div class="fi"><span class="fd"></span>Know about problems before your customers do</div></div></div><div class="md-screen" id="mapScreen"><div class="mx" onclick="closeM()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l10 10M11 1L1 11"/></svg></div><div id="leafletMap"></div><canvas id="c1"></canvas></div></div>
+<div class="md-sources"><span class="src-label">Powered by</span><div class="src-items"><span class="src-item"><span class="src-dot"></span>EasyPost API — universal multi-carrier tracking</span><span class="src-item"><span class="src-dot"></span>Mapbox — interactive map visualization</span></div></div></div></div>
+
+<!-- MODAL 2: AI -->
+<div class="mo" id="mo2"><div class="md" data-t="green"><div class="md-body"><div class="md-text"><div class="ml">The solution</div><h3>Automatic data + AI answers</h3><p class="mp">QuickBooks, carrier data, and sales orders sync automatically. Ask in plain English instead of digging through a spreadsheet.</p><div class="mf"><div class="fi"><span class="fd"></span>QuickBooks invoices and clients pulled automatically</div><div class="fi"><span class="fd"></span>Carrier tracking synced — no manual updates</div><div class="fi"><span class="fd"></span>"What does ACME Corp usually order?"</div><div class="fi"><span class="fd"></span>"Did the ETA change on order #312?"</div><div class="fi"><span class="fd"></span>Sales team ready before every onsite</div></div></div><div class="md-screen"><div class="mx" onclick="closeM()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l10 10M11 1L1 11"/></svg></div><canvas id="c2"></canvas></div></div>
+<div class="md-sources"><span class="src-label">Powered by</span><div class="src-items"><span class="src-item"><span class="src-dot"></span>QuickBooks API — invoice &amp; client data sync</span><span class="src-item"><span class="src-dot"></span>Claude API — AI-powered natural language Q&amp;A</span><span class="src-item"><span class="src-dot"></span>Neon Postgres — central database</span></div></div></div></div>
+
+<div class="slide" id="s2"><div class="arch-title rv">How the data flows.</div><div class="arch-sub rv d1">Everything goes into one database. AI processes it. All three tools are built from that.</div><div class="arch-box rv d2"><canvas id="archCanvas" width="1100" height="380"></canvas></div></div>
+<div class="slide close" id="s3"><img src="evios-logo.png" alt="EviosHQ" style="height:28px;opacity:.5;margin-bottom:32px" class="rv"><h2 class="rv d1">Next step: scope it out.</h2><p class="rv d2">We define the data model, connect QuickBooks, and build a working prototype.</p><div class="sig rv d3">EviosHQ &times; Industrial Services International &mdash; 2026</div></div>
+
+<script>
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.1});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+const slides=document.querySelectorAll('.slide'),dots=document.querySelectorAll('#dots a');
+const dObs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){const i=[...slides].indexOf(e.target);dots.forEach((d,j)=>d.classList.toggle('active',i===j))}})},{threshold:.4});
+slides.forEach(s=>dObs.observe(s));
+const overlays=[document.getElementById('mo0'),document.getElementById('mo1'),document.getElementById('mo2')];
+let activeM=-1,animFrames=[null,null,null];
+document.querySelectorAll('.pain[data-m]').forEach(c=>c.addEventListener('click',()=>openM(+c.dataset.m)));
+function openM(i){activeM=i;overlays[i].classList.add('open');if(animFrames[i])cancelAnimationFrame(animFrames[i]);[runQuote,runMap,runChat][i]()}
+function closeM(){if(activeM>=0){overlays[activeM].classList.remove('open');if(animFrames[activeM])cancelAnimationFrame(animFrames[activeM]);animFrames[activeM]=null;activeM=-1}}
+overlays.forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeM()}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM()});
+
+function initC(id){const cv=document.getElementById(id),x=cv.getContext('2d'),r=cv.parentElement.getBoundingClientRect(),d=devicePixelRatio||1,W=r.width,H=r.height;cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';x.setTransform(d,0,0,d,0,0);return{x,W,H}}
+function chrome(x,W,p){x.fillStyle='#111827';x.fillRect(0,0,W,34);x.strokeStyle='#1e2d4a';x.lineWidth=1;x.beginPath();x.moveTo(0,34);x.lineTo(W,34);x.stroke();[7,18,29].forEach((dx,i)=>{x.beginPath();x.arc(p+dx,17,3.5,0,Math.PI*2);x.fillStyle=['#ef4444','#eab308','#22c55e'][i];x.globalAlpha=.55;x.fill();x.globalAlpha=1})}
+
+// ═══ QUOTE TOOL ═══
+function runQuote(){
+  const{x,W,H}=initC('c0');const p=18;
+  const carriers=[{name:'Hapag-Lloyd',mode:'Ocean',transit:'22–26 days',price:820,c:'#34d399'},{name:'Maersk Line',mode:'Ocean',transit:'18–22 days',price:890,c:'#22d3ee'},{name:'FedEx Intl Priority',mode:'Air',transit:'5–7 days',price:2180,c:'#a78bfa'},{name:'UPS Worldwide',mode:'Air',transit:'4–6 days',price:2340,c:'#60a5fa'},{name:'DHL Express',mode:'Air',transit:'3–5 days',price:2520,c:'#fbbf24'}];
+  let t=0;
+  function draw(){x.clearRect(0,0,W,H);x.fillStyle='#080c16';x.fillRect(0,0,W,H);chrome(x,W,p);
+    x.fillStyle='#0d1220';x.fillRect(0,34,W,50);x.strokeStyle='#1a2540';x.beginPath();x.moveTo(0,84);x.lineTo(W,84);x.stroke();
+    x.fillStyle='#4e5f82';x.font='600 7.5px Inter,sans-serif';x.textAlign='left';x.fillText('SHIPMENT QUOTE',p,49);
+    x.fillStyle='#e8edf5';x.font='700 12px Inter,sans-serif';x.fillText('Hamburg, DE',p,66);
+    x.fillStyle='#fbbf24';x.font='500 11px Inter,sans-serif';x.fillText('→',p+85,66);
+    x.fillStyle='#e8edf5';x.font='700 12px Inter,sans-serif';x.fillText('Houston, TX',p+100,66);
+    x.fillStyle='#4e5f82';x.font='500 9px Inter,sans-serif';x.fillText('450 kg · 2 pallets · Industrial valves',p+220,66);
+    const cyc=t%(500+220),scanEnd=55;
+    if(cyc<scanEnd){const pr=cyc/scanEnd;x.fillStyle='rgba(251,191,36,.04)';x.fillRect(p,90,(W-p*2),16);x.fillStyle='#fbbf24';x.globalAlpha=.2;x.fillRect(p,90,(W-p*2)*pr,16);x.globalAlpha=1;x.fillStyle='#fbbf24';x.font='600 7.5px Inter,sans-serif';x.textAlign='center';x.fillText('SCANNING 5 CARRIERS...',W/2,101);x.textAlign='left'}
+    const thY=cyc<scanEnd?116:90;
+    x.fillStyle='#0d1220';x.fillRect(0,thY,W,22);x.strokeStyle='#1a2540';x.beginPath();x.moveTo(0,thY+22);x.lineTo(W,thY+22);x.stroke();
+    x.fillStyle='#3d4f6f';x.font='600 7px Inter,sans-serif';x.textAlign='left';x.fillText('CARRIER',p,thY+14);x.fillText('MODE',W*.44,thY+14);x.fillText('TRANSIT',W*.57,thY+14);x.textAlign='right';x.fillText('RATE',W-p,thY+14);x.textAlign='left';
+    if(cyc>=scanEnd){const sorted=[...carriers].sort((a,b)=>a.price-b.price);
+    sorted.forEach((cr,i)=>{const rd=scanEnd+i*16;if(cyc<rd)return;const ra=Math.min(1,(cyc-rd)/12);const ry=thY+24+i*36;x.globalAlpha=ra;
+      if(i%2===0){x.fillStyle='rgba(255,255,255,.01)';x.fillRect(0,ry,W,36)}
+      if(i===0&&cyc>scanEnd+sorted.length*16+15){x.fillStyle='rgba(52,211,153,.04)';x.fillRect(0,ry,W,36);x.strokeStyle='rgba(52,211,153,.12)';x.lineWidth=1;x.beginPath();x.moveTo(0,ry);x.lineTo(W,ry);x.stroke();x.beginPath();x.moveTo(0,ry+36);x.lineTo(W,ry+36);x.stroke()}
+      x.beginPath();x.arc(p+5,ry+18,4,0,Math.PI*2);x.fillStyle=cr.c;x.fill();
+      x.fillStyle='#e8edf5';x.font='600 10px Inter,sans-serif';x.textAlign='left';x.fillText(cr.name,p+16,ry+21);
+      const oc=cr.mode==='Ocean';x.fillStyle=oc?'rgba(34,211,238,.08)':'rgba(167,139,250,.08)';x.beginPath();x.roundRect(W*.44,ry+10,42,16,4);x.fill();
+      x.fillStyle=oc?'#22d3ee':'#a78bfa';x.font='600 7px Inter,sans-serif';x.fillText(cr.mode,W*.44+8,ry+21);
+      x.fillStyle='#7b8baa';x.font='500 9px Inter,sans-serif';x.fillText(cr.transit,W*.57,ry+21);
+      x.textAlign='right';x.fillStyle=i===0&&cyc>scanEnd+sorted.length*16+15?'#34d399':'#e8edf5';x.font='700 11px Inter,sans-serif';x.fillText('$'+cr.price.toLocaleString(),W-p,ry+21);x.textAlign='left';x.globalAlpha=1});
+    const ss=scanEnd+sorted.length*16+35;if(cyc>ss){const sa=Math.min(1,(cyc-ss)/20);x.globalAlpha=sa;const sy=thY+24+sorted.length*36+10;
+      x.fillStyle='rgba(52,211,153,.05)';x.beginPath();x.roundRect(p,sy,W-p*2,34,8);x.fill();x.strokeStyle='rgba(52,211,153,.12)';x.beginPath();x.roundRect(p,sy,W-p*2,34,8);x.stroke();
+      x.fillStyle='#34d399';x.font='700 9px Inter,sans-serif';x.textAlign='left';x.fillText('BEST RATE: Hapag-Lloyd — $820',p+14,sy+15);
+      x.fillStyle='rgba(52,211,153,.5)';x.font='500 8px Inter,sans-serif';x.fillText('67% cheaper than fastest air option · Quote saved to database',p+14,sy+27);x.globalAlpha=1}}
+    t++;animFrames[0]=requestAnimationFrame(draw)}draw()}
+
+// ═══ MAP — LIVE TRACKING (Leaflet + CARTO tiles) ═══
+let lMap=null;
+function runMap(){
+  const scr=document.getElementById('mapScreen');
+  const cv=document.getElementById('c1');
+  const x=cv.getContext('2d');
+  const rc=scr.getBoundingClientRect();
+  const d=devicePixelRatio||1;
+  const W=rc.width,H=rc.height;
+  cv.width=W*d;cv.height=H*d;
+  x.setTransform(d,0,0,d,0,0);
+
+  if(!lMap){
+    lMap=L.map('leafletMap',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false});
+    L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,detectRetina:true}).addTo(lMap);
+  }
+  lMap.invalidateSize();
+  lMap.fitBounds([[18,-130],[68,30]],{animate:false,padding:[0,0]});
+  setTimeout(function(){lMap.invalidateSize();lMap.fitBounds([[18,-130],[68,30]],{animate:false,padding:[0,0]})},500);
+
+  const p=14;
+  const cities=[
+    {name:'Hamburg',lon:10,lat:53.55,c:'#60a5fa'},
+    {name:'Rotterdam',lon:4.5,lat:51.92,c:'#60a5fa'},
+    {name:'Houston',lon:-95.37,lat:29.76,c:'#34d399'},
+    {name:'Monterrey',lon:-100.31,lat:25.67,c:'#fbbf24'},
+    {name:'New York',lon:-74,lat:40.71,c:'#34d399'},
+    {name:'Chicago',lon:-87.63,lat:41.88,c:'#34d399'},
+    {name:'Miami',lon:-80.19,lat:25.76,c:'#34d399'},
+    {name:'Los Angeles',lon:-118.24,lat:34.05,c:'#34d399'},
+  ];
+  const routes=[
+    {from:0,to:2,c:'#22d3ee',id:'#4521'},{from:1,to:3,c:'#fbbf24',id:'#4498'},
+    {from:5,to:7,c:'#34d399',id:'#4510'},{from:0,to:4,c:'#a78bfa',id:'#4533'},
+    {from:6,to:3,c:'#fbbf24',id:'#4545'},
+  ];
+
+  function proj(lon,lat){
+    if(!lMap._loaded) return[W/2,H/2];
+    const pt=lMap.latLngToContainerPoint([lat,lon]);
+    return[pt.x,pt.y];
+  }
+
+  let t=0;
+  function draw(){
+    x.clearRect(0,0,W,H);
+    chrome(x,W,p);
+    x.fillStyle='#0c1220';x.fillRect(0,34,W,26);
+    x.strokeStyle='#151e30';x.beginPath();x.moveTo(0,60);x.lineTo(W,60);x.stroke();
+    x.font='600 7.5px Inter,sans-serif';x.textAlign='left';
+    x.fillStyle='#4e5f82';x.fillText('ACTIVE: 5',p,50);
+    x.fillStyle='#34d399';x.fillText('● 3 ON TIME',p+55,50);
+    x.fillStyle='#fbbf24';x.fillText('● 1 ARRIVING',p+125,50);
+    x.fillStyle='#f87171';x.fillText('● 1 DELAYED',p+200,50);
+
+    routes.forEach((r,ri)=>{const f=cities[r.from],to=cities[r.to];
+      const[fx,fy]=proj(f.lon,f.lat),[tx,ty]=proj(to.lon,to.lat);
+      const mx=(fx+tx)/2,my=Math.min(fy,ty)-30-ri*8;
+      x.strokeStyle=r.c;x.globalAlpha=.18;x.lineWidth=2;x.setLineDash([6,4]);
+      x.beginPath();x.moveTo(fx,fy);x.quadraticCurveTo(mx,my,tx,ty);x.stroke();
+      x.setLineDash([]);x.globalAlpha=1;
+      const spd=.0005+ri*.00012,pr=(t*spd+ri*.2)%1,u=1-pr;
+      const px_=u*u*fx+2*u*pr*mx+pr*pr*tx,py_=u*u*fy+2*u*pr*my+pr*pr*ty;
+      const g=x.createRadialGradient(px_,py_,0,px_,py_,14);g.addColorStop(0,r.c+'55');g.addColorStop(1,'transparent');x.fillStyle=g;x.fillRect(px_-14,py_-14,28,28);
+      x.beginPath();x.arc(px_,py_,4,0,Math.PI*2);x.fillStyle=r.c;x.fill();
+      for(let tr=1;tr<=3;tr++){const tp=Math.max(0,pr-tr*.015);const tu=1-tp;
+        const trx=tu*tu*fx+2*tu*tp*mx+tp*tp*tx,try_=tu*tu*fy+2*tu*tp*my+tp*tp*ty;
+        x.beginPath();x.arc(trx,try_,3-tr*.5,0,Math.PI*2);x.fillStyle=r.c;x.globalAlpha=.3-tr*.07;x.fill();x.globalAlpha=1}});
+
+    cities.forEach(c=>{const[cx,cy]=proj(c.lon,c.lat);
+      const pulse=Math.sin(t*.03+c.lon)*.5+.5;
+      x.beginPath();x.arc(cx,cy,6+pulse*3,0,Math.PI*2);x.fillStyle=c.c+'15';x.fill();
+      x.beginPath();x.arc(cx,cy,4,0,Math.PI*2);x.fillStyle=c.c;x.globalAlpha=.9;x.fill();x.globalAlpha=1;
+      x.fillStyle='#fff';x.font='600 8.5px Inter,sans-serif';x.textAlign='center';
+      x.shadowColor=c.c;x.shadowBlur=6;
+      x.fillText(c.name,cx,cy-12);
+      x.shadowBlur=0});
+
+    const ac=t%600;if(ac>300&&ac<550){const aa=ac<325?(ac-300)/25:ac>525?(550-ac)/25:1;x.globalAlpha=aa;
+      const aw=210,ah=54,ax=W-aw-12,ay=H-ah-14;
+      x.fillStyle='rgba(18,16,30,.92)';x.beginPath();x.roundRect(ax,ay,aw,ah,8);x.fill();
+      x.strokeStyle='rgba(248,113,113,.25)';x.lineWidth=1;x.beginPath();x.roundRect(ax,ay,aw,ah,8);x.stroke();
+      x.fillStyle='#f87171';x.beginPath();x.roundRect(ax,ay,3,ah,2);x.fill();
+      x.fillStyle='#f87171';x.font='700 7.5px Inter,sans-serif';x.textAlign='left';x.fillText('DELAY ALERT',ax+14,ay+15);
+      x.fillStyle='#e8edf5';x.font='600 9px Inter,sans-serif';x.fillText('Shipment #4521 · Hamburg → Houston',ax+14,ay+30);
+      x.fillStyle='#7b8baa';x.font='500 7.5px Inter,sans-serif';x.fillText('ETA updated: Feb 18 → Feb 21 · Rotterdam delay',ax+14,ay+44);
+      x.globalAlpha=1}
+
+    t++;animFrames[1]=requestAnimationFrame(draw)}
+  draw()}
+
+// ═══ AI CHAT ═══
+function runChat(){
+  const{x,W,H}=initC('c2');const p=14;
+  const question='What does ACME Corp usually order?';
+  const answerLines=[];
+  (function(){const words='ACME Corp placed 14 orders in the last 6 months. Primarily industrial valves (60%) and pipe fittings (35%). Average order value: $8,200. They reorder every 3–4 weeks.'.split(' ');let ln='';const mw=W*.65;x.font='500 9px Inter,sans-serif';
+    words.forEach(w=>{const t_=ln?ln+' '+w:w;if(x.measureText(t_).width>mw&&ln){answerLines.push(ln);ln=w}else ln=t_});if(ln)answerLines.push(ln)})();
+
+  const stats=[{l:'Orders Today',v:'12',c:'#60a5fa'},{l:'In Transit',v:'23',c:'#22d3ee'},{l:'Delivered',v:'8',c:'#34d399'},{l:'Revenue MTD',v:'$94K',c:'#fbbf24'}];
+  let t=0;
+  function draw(){x.clearRect(0,0,W,H);x.fillStyle='#080c16';x.fillRect(0,0,W,H);chrome(x,W,p);
+    // Stats
+    const sW_=(W-p*2-12)/4;
+    stats.forEach((s,i)=>{const sx=p+i*(sW_+4),sy=42;
+      x.fillStyle='#0d1220';x.beginPath();x.roundRect(sx,sy,sW_,44,6);x.fill();x.strokeStyle='#182030';x.beginPath();x.roundRect(sx,sy,sW_,44,6);x.stroke();
+      x.fillStyle='#3d4f6f';x.font='500 7px Inter,sans-serif';x.textAlign='left';x.fillText(s.l,sx+8,sy+15);
+      x.fillStyle=s.c;x.font='800 14px Inter,sans-serif';x.fillText(s.v,sx+8,sy+34);
+      x.strokeStyle=s.c;x.globalAlpha=.2;x.lineWidth=1;x.beginPath();for(let q=0;q<6;q++){const px_=sx+sW_-28+q*4,py_=sy+30-Math.sin(t*.02+i+q*.8)*5;q===0?x.moveTo(px_,py_):x.lineTo(px_,py_)};x.stroke();x.globalAlpha=1});
+
+    const chatY=96;x.fillStyle='#0a0f1a';x.beginPath();x.roundRect(p,chatY,W-p*2,H-chatY-p,8);x.fill();x.strokeStyle='#151e30';x.beginPath();x.roundRect(p,chatY,W-p*2,H-chatY-p,8);x.stroke();
+    x.fillStyle='#3d4f6f';x.font='600 7.5px Inter,sans-serif';x.textAlign='left';x.fillText('AI ASSISTANT',p+12,chatY+16);
+
+    const cyc=t%(540+200),typeSpd=2,typeEnd=question.length*typeSpd,respStart=typeEnd+45;
+    // User msg
+    const chars=Math.min(question.length,Math.floor(cyc/typeSpd));
+    if(chars>0){const typed=question.slice(0,chars),my_=chatY+34;x.font='500 9px Inter,sans-serif';const tw_=x.measureText(typed).width+20;
+      x.fillStyle='rgba(96,165,250,.1)';x.beginPath();x.arc(W-p-16,my_+4,8,0,Math.PI*2);x.fill();x.fillStyle='#60a5fa';x.font='700 6.5px Inter,sans-serif';x.textAlign='center';x.fillText('You',W-p-16,my_+7);
+      const bx=W-p-34-tw_;x.fillStyle='rgba(96,165,250,.05)';x.beginPath();x.roundRect(bx,my_-8,tw_+8,26,8);x.fill();x.strokeStyle='rgba(96,165,250,.1)';x.beginPath();x.roundRect(bx,my_-8,tw_+8,26,8);x.stroke();
+      x.fillStyle='#c4d5f0';x.font='500 9px Inter,sans-serif';x.textAlign='left';x.fillText(typed,bx+6,my_+8);
+      if(chars<question.length&&Math.sin(t*.15)>0){x.fillStyle='#60a5fa';x.fillRect(bx+6+x.measureText(typed).width+1,my_-2,1.5,14)}}
+
+    // Typing dots
+    if(cyc>typeEnd+8&&cyc<respStart){const ty_=chatY+72;x.fillStyle='#0f1726';x.beginPath();x.roundRect(p+30,ty_,40,20,6);x.fill();
+      [0,1,2].forEach(i=>{x.beginPath();x.arc(p+42+i*8,ty_+10,2.5,0,Math.PI*2);x.fillStyle='#4e5f82';x.globalAlpha=.3+.5*(Math.sin(t*.12+i*1.2)*.5+.5);x.fill()});x.globalAlpha=1}
+
+    // AI response
+    if(cyc>respStart){const my_=chatY+72,el=cyc-respStart;
+      x.fillStyle='rgba(52,211,153,.1)';x.beginPath();x.arc(p+22,my_+4,8,0,Math.PI*2);x.fill();x.fillStyle='#34d399';x.font='700 6.5px Inter,sans-serif';x.textAlign='center';x.fillText('AI',p+22,my_+7);
+      const linesN=Math.min(answerLines.length,Math.floor(el/16));
+      if(linesN>0){const bh=linesN*16+14;x.fillStyle='#0f1726';x.beginPath();x.roundRect(p+34,my_-8,W*.68,bh,8);x.fill();x.strokeStyle='#182030';x.beginPath();x.roundRect(p+34,my_-8,W*.68,bh,8);x.stroke();
+        x.fillStyle='#d0d8e8';x.font='500 9px Inter,sans-serif';x.textAlign='left';
+        for(let i=0;i<linesN;i++){x.globalAlpha=Math.min(1,(el-i*16)/10);x.fillText(answerLines[i],p+44,my_+6+i*16)}x.globalAlpha=1;
+
+        // Bar chart
+        if(linesN>=answerLines.length&&el>answerLines.length*16+25){
+          const ca=Math.min(1,(el-answerLines.length*16-25)/22);x.globalAlpha=ca;
+          const cy_=my_+linesN*16+10;
+          x.fillStyle='#0c1220';x.beginPath();x.roundRect(p+34,cy_,W*.68,58,8);x.fill();x.strokeStyle='#182030';x.beginPath();x.roundRect(p+34,cy_,W*.68,58,8);x.stroke();
+          x.fillStyle='#3d4f6f';x.font='600 7px Inter,sans-serif';x.textAlign='left';x.fillText('ORDER BREAKDOWN',p+46,cy_+14);
+          const bars=[{l:'Valves',v:.6,c:'#60a5fa'},{l:'Fittings',v:.35,c:'#22d3ee'},{l:'Other',v:.05,c:'#4e5f82'}];
+          const bY=cy_+22, mxBW=W*.68-80;
+          bars.forEach((b,i)=>{
+            const by_=bY+i*12;
+            x.fillStyle='#4e5f82';x.font='500 7px Inter,sans-serif';x.textAlign='right';
+            x.fillText(b.l,p+86,by_+8);
+            x.textAlign='left';
+            x.fillStyle='rgba(255,255,255,.02)';x.beginPath();x.roundRect(p+92,by_+1,mxBW,8,3);x.fill();
+            x.fillStyle=b.c;x.globalAlpha=ca;x.beginPath();x.roundRect(p+92,by_+1,mxBW*b.v*ca,8,3);x.fill();x.globalAlpha=ca;
+            x.fillStyle=b.c;x.font='600 7px Inter,sans-serif';x.fillText(Math.round(b.v*100)+'%',p+96+mxBW*b.v*ca,by_+8);
+          });x.globalAlpha=1}}}
+
+    // Input
+    x.fillStyle='#0c1220';x.beginPath();x.roundRect(p+6,H-p-32,W-p*2-12,26,6);x.fill();x.strokeStyle='#182030';x.beginPath();x.roundRect(p+6,H-p-32,W-p*2-12,26,6);x.stroke();
+    x.fillStyle='#3d4f6f';x.font='500 8.5px Inter,sans-serif';x.textAlign='left';x.fillText('Ask anything about your data...',p+16,H-p-15);
+    t++;animFrames[2]=requestAnimationFrame(draw)}draw()}
+
+// ═══ ARCHITECTURE ═══
+(function(){const c=document.getElementById('archCanvas'),ctx=c.getContext('2d');let W,H,dpr;
+  function resize(){const r=c.parentElement.getBoundingClientRect();dpr=devicePixelRatio||1;W=r.width;H=380;c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}resize();addEventListener('resize',resize);
+  const N=[{id:'qb',x:.05,y:.16,w:120,h:40,l:'QuickBooks',s:'Invoices & Orders',c:'#60a5fa'},{id:'cr',x:.05,y:.45,w:120,h:40,l:'Carrier Data',s:'Tracking & Status',c:'#f87171'},{id:'so',x:.05,y:.74,w:120,h:40,l:'Sales Orders',s:'Client History',c:'#60a5fa'},{id:'db',x:.34,y:.35,w:140,h:54,l:'Central Database',s:'Source of Truth',c:'#34d399',b:1},{id:'ai',x:.57,y:.35,w:130,h:54,l:'AI Engine',s:'Processes Data',c:'#22d3ee',b:1},{id:'u1',x:.79,y:.12,w:140,h:38,l:'Data + Chat',s:'Ask Anything',c:'#22d3ee'},{id:'u2',x:.79,y:.45,w:140,h:38,l:'Live Map',s:'Track Shipments',c:'#34d399'},{id:'u3',x:.79,y:.78,w:140,h:38,l:'Quote Tool',s:'Compare Rates',c:'#fbbf24'}];
+  const E=[{f:'qb',t:'db',c:'#60a5fa'},{f:'cr',t:'db',c:'#f87171'},{f:'so',t:'db',c:'#60a5fa'},{f:'db',t:'ai',c:'#34d399'},{f:'ai',t:'u1',c:'#22d3ee'},{f:'ai',t:'u2',c:'#34d399'},{f:'ai',t:'u3',c:'#fbbf24'}];
+  const P=[];function gc(n){return{x:n.x*W+n.w/2,y:n.y*H+(n.h||38)/2}}
+  function sp(e){const f=gc(N.find(n=>n.id===e.f)),t=gc(N.find(n=>n.id===e.t));P.push({fx:f.x,fy:f.y,tx:t.x,ty:t.y,t:0,sp:.004+Math.random()*.002,c:e.c,z:2.5+Math.random()*1.5})}
+  function rr(bx,by,bw,bh,br){ctx.beginPath();ctx.moveTo(bx+br,by);ctx.lineTo(bx+bw-br,by);ctx.quadraticCurveTo(bx+bw,by,bx+bw,by+br);ctx.lineTo(bx+bw,by+bh-br);ctx.quadraticCurveTo(bx+bw,by+bh,bx+bw-br,by+bh);ctx.lineTo(bx+br,by+bh);ctx.quadraticCurveTo(bx,by+bh,bx,by+bh-br);ctx.lineTo(bx,by+br);ctx.quadraticCurveTo(bx,by,bx+br,by);ctx.closePath()}
+  let tk=0;function draw(){ctx.clearRect(0,0,W,H);
+    ctx.font='600 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(123,139,170,.3)';ctx.fillText('DATA IN',N[0].x*W+60,30);ctx.fillText('DATABASE',N[3].x*W+70,30);ctx.fillText('AI',N[4].x*W+65,30);ctx.fillText('OUTPUT',N[5].x*W+70,30);
+    E.forEach(e=>{const f=gc(N.find(n=>n.id===e.f)),t=gc(N.find(n=>n.id===e.t));ctx.strokeStyle=e.c;ctx.globalAlpha=.07;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(f.x,f.y);const mx=(f.x+t.x)/2;ctx.bezierCurveTo(mx,f.y,mx,t.y,t.x,t.y);ctx.stroke();ctx.globalAlpha=1});
+    for(let i=P.length-1;i>=0;i--){const p=P[i];p.t+=p.sp;if(p.t>1){P.splice(i,1);continue}const u=1-p.t,mx=(p.fx+p.tx)/2;const px=u*u*u*p.fx+3*u*u*p.t*mx+3*u*p.t*p.t*mx+p.t*p.t*p.t*p.tx;const py=u*u*u*p.fy+3*u*u*p.t*p.fy+3*u*p.t*p.t*p.ty+p.t*p.t*p.t*p.ty;const a=Math.sin(p.t*Math.PI)*.75;const g=ctx.createRadialGradient(px,py,0,px,py,p.z*5);g.addColorStop(0,p.c+'50');g.addColorStop(1,'transparent');ctx.beginPath();ctx.arc(px,py,p.z*5,0,Math.PI*2);ctx.fillStyle=g;ctx.globalAlpha=a*.3;ctx.fill();ctx.beginPath();ctx.arc(px,py,p.z,0,Math.PI*2);ctx.fillStyle=p.c;ctx.globalAlpha=a;ctx.fill();ctx.globalAlpha=1}
+    N.forEach(n=>{const nx=n.x*W,ny=n.y*H,nh=n.h||38;rr(nx,ny,n.w,nh,10);ctx.fillStyle='#131c31';ctx.fill();ctx.strokeStyle=n.c+(n.b?'40':'25');ctx.lineWidth=n.b?1.5:1;ctx.stroke();ctx.fillStyle=n.c;ctx.font=(n.b?'700':'600')+' '+(n.b?'11.5':'10.5')+'px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(n.l,nx+n.w/2,ny+nh/2-(n.s?3:0));if(n.s){ctx.fillStyle=n.c+'50';ctx.font='500 8px Inter,sans-serif';ctx.fillText(n.s,nx+n.w/2,ny+nh/2+11)}});
+    tk++;if(tk%20===0)sp(E[Math.floor(Math.random()*E.length)]);requestAnimationFrame(draw)}draw()})();
+</script>
+</body>
+</html>
